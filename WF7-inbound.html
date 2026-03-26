@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kartel Klaw — WF7 Inbound SDR Deep Dive</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #0B0F1A;
+      padding: 64px 80px;
+      color: #E2E8F0;
+      min-height: 100vh;
+    }
+
+    /* ─── HEADER ─── */
+    .page-header { margin-bottom: 64px; position: relative; }
+
+    .page-header::after {
+      content: '';
+      position: absolute;
+      bottom: -28px;
+      left: 0;
+      width: 80px;
+      height: 3px;
+      background: linear-gradient(90deg, #22C55E, #16A34A);
+      border-radius: 2px;
+    }
+
+    .page-tag {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #22C55E;
+      background: rgba(34,197,94,0.1);
+      border: 1px solid rgba(34,197,94,0.15);
+      padding: 6px 14px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+
+    .page-title {
+      font-size: 36px;
+      font-weight: 800;
+      color: #F8FAFC;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      margin-bottom: 14px;
+    }
+
+    .page-subtitle {
+      font-size: 14px;
+      color: #64748B;
+      font-weight: 400;
+      line-height: 1.6;
+      max-width: 660px;
+    }
+
+    /* ─── SECTION ─── */
+    .section {
+      background: #111827;
+      border-radius: 20px;
+      padding: 44px 48px;
+      margin-bottom: 36px;
+      border: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(34,197,94,0.3), rgba(34,197,94,0.1), transparent);
+    }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+
+    .section-title {
+      font-size: 21px;
+      font-weight: 700;
+      color: #F1F5F9;
+      letter-spacing: -0.4px;
+      margin-bottom: 10px;
+    }
+
+    .section-desc {
+      font-size: 12.5px;
+      color: #64748B;
+      line-height: 1.65;
+      margin-bottom: 32px;
+      max-width: 720px;
+    }
+
+    /* ─── GRIDS ─── */
+    .grid { display: grid; gap: 14px; }
+    .g2 { grid-template-columns: 1fr 1fr; }
+    .g3 { grid-template-columns: 1fr 1fr 1fr; }
+    .g4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+    /* ─── CARDS ─── */
+    .card {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 22px 24px;
+    }
+
+    .card.hl-green  { border-color: rgba(34,197,94,0.2);  background: rgba(34,197,94,0.035); }
+    .card.hl-blue   { border-color: rgba(59,130,246,0.2);  background: rgba(59,130,246,0.035); }
+    .card.hl-yellow { border-color: rgba(245,158,11,0.2);  background: rgba(245,158,11,0.035); }
+    .card.hl-red    { border-color: rgba(239,68,68,0.2);   background: rgba(239,68,68,0.035); }
+    .card.hl-purple { border-color: rgba(139,92,246,0.2);  background: rgba(139,92,246,0.035); }
+
+    .card-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .tag-green  { color: #4ADE80; }
+    .tag-blue   { color: #60A5FA; }
+    .tag-yellow { color: #FBBF24; }
+    .tag-red    { color: #F87171; }
+    .tag-purple { color: #A78BFA; }
+    .tag-gray   { color: #94A3B8; }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #F1F5F9;
+      letter-spacing: -0.2px;
+      margin-bottom: 10px;
+    }
+
+    .card-body {
+      font-size: 11.5px;
+      color: #94A3B8;
+      line-height: 1.65;
+    }
+
+    .card-body strong { color: #E2E8F0; font-weight: 600; }
+
+    /* ─── STATE MACHINE ─── */
+    .sm { display: flex; flex-direction: column; align-items: center; }
+
+    .sm-node {
+      border-radius: 12px;
+      padding: 14px 28px;
+      text-align: center;
+      min-width: 240px;
+    }
+
+    .sm-node .n { font-size: 13px; font-weight: 700; color: #FFF; }
+    .sm-node .d { font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 3px; }
+
+    .sm-trigger  { background: linear-gradient(135deg, #374151, #1F2937); border: 1px solid rgba(255,255,255,0.1); border-radius: 40px; }
+    .sm-process  { background: linear-gradient(135deg, #1E40AF, #1D4ED8); border: 1px solid rgba(59,130,246,0.3); }
+    .sm-gate     { background: linear-gradient(135deg, #D97706, #B45309); border: 1px solid rgba(245,158,11,0.3); }
+    .sm-send     { background: linear-gradient(135deg, #16A34A, #15803D); border: 1px solid rgba(34,197,94,0.3); }
+    .sm-end-ok   { background: linear-gradient(135deg, #16A34A, #15803D); border: 1px solid rgba(34,197,94,0.3); border-radius: 40px; }
+    .sm-end-neut { background: linear-gradient(135deg, #6B7280, #4B5563); border: 1px solid rgba(255,255,255,0.1); border-radius: 40px; }
+    .sm-end-bad  { background: linear-gradient(135deg, #DC2626, #B91C1C); border: 1px solid rgba(239,68,68,0.3); border-radius: 40px; }
+    .sm-purple   { background: linear-gradient(135deg, #7C3AED, #6D28D9); border: 1px solid rgba(139,92,246,0.3); }
+
+    .sm-conn { display: flex; flex-direction: column; align-items: center; padding: 2px 0; }
+    .sm-line { width: 2px; height: 18px; background: rgba(255,255,255,0.1); }
+    .sm-arrow { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid rgba(255,255,255,0.1); }
+    .sm-lbl { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: #64748B; letter-spacing: 0.5px; padding: 3px 0; }
+
+    .branches { display: flex; gap: 20px; justify-content: center; margin-top: 10px; }
+    .branch { display: flex; flex-direction: column; align-items: center; }
+    .btag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 700;
+      letter-spacing: 0.8px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 6px;
+    }
+
+    .btag-g { background: rgba(34,197,94,0.12); color: #4ADE80; }
+    .btag-y { background: rgba(245,158,11,0.12); color: #FBBF24; }
+    .btag-r { background: rgba(239,68,68,0.12); color: #F87171; }
+
+    /* ─── RULES ─── */
+    .rule {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 9px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .rule:last-child { border-bottom: none; }
+
+    .rn {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 700;
+      flex-shrink: 0; margin-top: 1px;
+    }
+
+    .rn-g { background: rgba(34,197,94,0.15); color: #4ADE80; border: 1px solid rgba(34,197,94,0.2); }
+    .rn-r { background: rgba(239,68,68,0.15); color: #F87171; border: 1px solid rgba(239,68,68,0.2); }
+    .rn-b { background: rgba(59,130,246,0.15); color: #60A5FA; border: 1px solid rgba(59,130,246,0.2); }
+
+    .rc { flex: 1; font-size: 11.5px; color: #94A3B8; line-height: 1.55; }
+    .rc strong { color: #E2E8F0; }
+
+    /* ─── TABLE ─── */
+    .tbl { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    .tbl th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 600;
+      letter-spacing: 1px; text-transform: uppercase;
+      color: #64748B;
+      padding: 10px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.015);
+    }
+    .tbl td {
+      font-size: 11.5px; color: #CBD5E1;
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+    .tbl tr:last-child td { border-bottom: none; }
+    .tbl .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #A78BFA; }
+    .tbl .v-g { color: #4ADE80; font-weight: 600; }
+    .tbl .v-y { color: #FBBF24; font-weight: 600; }
+    .tbl .v-r { color: #F87171; font-weight: 600; }
+    .tbl .v-b { color: #60A5FA; font-weight: 600; }
+
+    /* ─── BADGES ─── */
+    .badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px; font-weight: 600;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 8px;
+      vertical-align: middle;
+      margin-left: 3px;
+    }
+    .b-auto   { background: rgba(34,197,94,0.12); color: #4ADE80; border: 1px solid rgba(34,197,94,0.15); }
+    .b-manual { background: rgba(245,158,11,0.12); color: #FBBF24; border: 1px solid rgba(245,158,11,0.15); }
+    .b-crit   { background: rgba(239,68,68,0.12); color: #F87171; border: 1px solid rgba(239,68,68,0.15); }
+
+    .prop {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 500;
+      padding: 2px 8px; border-radius: 4px;
+      background: rgba(139,92,246,0.1);
+      color: #C4B5FD;
+      border: 1px solid rgba(139,92,246,0.12);
+      margin: 2px 2px;
+    }
+
+    /* ─── ANNOTATIONS ─── */
+    .notes { margin-top: 24px; display: flex; gap: 12px; flex-wrap: wrap; }
+
+    .note {
+      border-left: 3px solid;
+      border-radius: 0 8px 8px 0;
+      padding: 10px 16px;
+      font-size: 11px;
+      line-height: 1.5;
+      max-width: 340px;
+    }
+    .note.y  { background: rgba(254,243,199,0.05); border-color: #FBBF24; color: #FDE68A; }
+    .note.b  { background: rgba(59,130,246,0.05);  border-color: #3B82F6; color: #93C5FD; }
+    .note.g  { background: rgba(34,197,94,0.05);   border-color: #22C55E; color: #86EFAC; }
+    .note.r  { background: rgba(239,68,68,0.05);   border-color: #EF4444; color: #FCA5A5; }
+
+    /* ─── SUBSECTION SEP ─── */
+    .sep { display: flex; align-items: center; gap: 14px; margin: 28px 0 22px; }
+    .sep-line { flex: 1; height: 1px; background: rgba(255,255,255,0.05); }
+    .sep-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 600;
+      letter-spacing: 2px; text-transform: uppercase;
+      color: #475569; white-space: nowrap;
+    }
+
+    /* ─── SHARED BAR ─── */
+    .bar {
+      margin-top: 28px;
+      display: flex; align-items: center; justify-content: center;
+      gap: 20px; flex-wrap: wrap;
+      padding: 16px 28px;
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 12px;
+    }
+    .bar-item { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #94A3B8; font-weight: 500; }
+    .bar-item strong { color: #E2E8F0; }
+    .bar-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .bar-sep { width: 3px; height: 3px; border-radius: 50%; background: #334155; }
+
+    /* ─── TOUCH CARDS (SPLIT) ─── */
+    .touch {
+      border-radius: 16px;
+      padding: 28px 32px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .touch::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+
+    .touch.t1 { background: linear-gradient(180deg, rgba(34,197,94,0.07), rgba(34,197,94,0.015)); border: 1px solid rgba(34,197,94,0.15); }
+    .touch.t1::before { background: linear-gradient(90deg, #22C55E, #16A34A); }
+    .touch.t2 { background: linear-gradient(180deg, rgba(59,130,246,0.07), rgba(59,130,246,0.015)); border: 1px solid rgba(59,130,246,0.15); }
+    .touch.t2::before { background: linear-gradient(90deg, #3B82F6, #2563EB); }
+    .touch.t3 { background: linear-gradient(180deg, rgba(139,92,246,0.07), rgba(139,92,246,0.015)); border: 1px solid rgba(139,92,246,0.15); }
+    .touch.t3::before { background: linear-gradient(90deg, #8B5CF6, #7C3AED); }
+
+    .touch-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+
+    .touch-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 600;
+      letter-spacing: 1.5px; text-transform: uppercase;
+    }
+    .touch-title { font-size: 17px; font-weight: 700; color: #F1F5F9; }
+    .touch-timing {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; color: #64748B;
+      margin-bottom: 18px;
+    }
+
+    .touch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+
+    .tf {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .tf:last-child { border-bottom: none; }
+    .tf-k { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #64748B; }
+    .tf-v { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #E2E8F0; text-align: right; }
+
+    .touch-note {
+      margin-top: 14px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+    .touch-note strong { font-weight: 600; }
+    .touch-note.gn { background: rgba(34,197,94,0.06); color: #86EFAC; }
+    .touch-note.bn { background: rgba(59,130,246,0.06); color: #93C5FD; }
+    .touch-note.pn { background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="page-header">
+    <div class="page-tag">WF7 · Functional Specification · March 2026</div>
+    <div class="page-title">Inbound SDR — Deep Dive</div>
+    <div class="page-subtitle">3-touch email sequence for website form submissions. Every step, gate, field update, and edge case documented.</div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 1: STATE MACHINE                               -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 1</div>
+    <div class="section-title">Sequence Model — 3-Touch Flow</div>
+    <div class="section-desc">Every qualified inbound form lead enters a 3-touch email sequence. The <strong>kartel_score</strong> (WF4 composite, 0–100) determines whether the contact auto-qualifies, needs human review, or is dismissed. Touches send during morning sweep only. Reply/booking detection runs on all sweeps.</div>
+
+    <div class="sm">
+
+      <div class="sm-node sm-trigger" style="min-width:300px;">
+        <div class="n">Website Form Submitted</div>
+        <div class="d">HubSpot auto-creates Lead + Contact</div>
+      </div>
+      <div class="sm-conn"><div class="sm-line"></div><div class="sm-lbl">WF6 Step 5 detects new lead</div><div class="sm-arrow"></div></div>
+
+      <div class="sm-node sm-process" style="min-width:300px;">
+        <div class="n">WF1 Lead Completion + WF4 Scoring</div>
+        <div class="d">Clay enrichment → kartel_score calculated</div>
+      </div>
+      <div class="sm-conn"><div class="sm-line"></div><div class="sm-lbl">7 pre-qualification checks pass</div><div class="sm-arrow"></div></div>
+
+      <div class="sm-node sm-gate" style="min-width:300px;">
+        <div class="n">QUALIFICATION GATE</div>
+        <div class="d">kartel_score (0–100) evaluated against tier thresholds</div>
+      </div>
+
+      <div class="branches">
+        <!-- AUTO ≥40 -->
+        <div class="branch">
+          <div class="btag btag-g">kartel_score ≥ 40 → Auto-Send</div>
+          <div class="sm-conn"><div class="sm-line"></div><div class="sm-arrow"></div></div>
+          <div class="sm-node sm-send" style="min-width:156px;">
+            <div class="n">Touch 1</div>
+            <div class="d">Day 0 · Initial response</div>
+          </div>
+          <div class="sm-conn"><div class="sm-line"></div><div class="sm-lbl">+3 biz, no reply</div><div class="sm-arrow"></div></div>
+          <div class="sm-node sm-process" style="min-width:156px;">
+            <div class="n">Touch 2</div>
+            <div class="d">Day 3 · Value-add</div>
+          </div>
+          <div class="sm-conn"><div class="sm-line"></div><div class="sm-lbl">+4 biz, no reply</div><div class="sm-arrow"></div></div>
+          <div class="sm-node sm-purple" style="min-width:156px;">
+            <div class="n">Touch 3</div>
+            <div class="d">Day 7 · Calendly CTA</div>
+          </div>
+          <div class="sm-conn"><div class="sm-line"></div><div class="sm-lbl">+5 biz, no reply</div><div class="sm-arrow"></div></div>
+          <div class="sm-node sm-end-neut" style="min-width:156px;">
+            <div class="n">Nurture Pool</div>
+            <div class="d">Monthly AE check-in</div>
+          </div>
+        </div>
+
+        <!-- REVIEW 25-39 -->
+        <div class="branch">
+          <div class="btag btag-y">kartel_score 25–39 → Human Review</div>
+          <div class="sm-conn"><div class="sm-line"></div><div class="sm-arrow"></div></div>
+          <div class="sm-node sm-gate" style="min-width:170px;">
+            <div class="n">Slack Review Card</div>
+            <div class="d">#klaw-rev-output</div>
+          </div>
+          <div class="sm-conn"><div class="sm-line"></div><div class="sm-lbl">SEND / SKIP</div><div class="sm-arrow"></div></div>
+          <div class="sm-node sm-end-neut" style="min-width:170px;">
+            <div class="n">Touch 1 or Dismiss</div>
+            <div class="d">Human decision</div>
+          </div>
+        </div>
+
+        <!-- <25 NO ACTION -->
+        <div class="branch">
+          <div class="btag btag-r">kartel_score &lt; 25 → No Action</div>
+          <div class="sm-conn"><div class="sm-line"></div><div class="sm-arrow"></div></div>
+          <div class="sm-node sm-end-bad" style="min-width:140px;">
+            <div class="n">Log Only</div>
+            <div class="d">#klaw-rev-logs</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="sep">
+      <div class="sep-line"></div>
+      <div class="sep-label">Sequence Exit Events — At Any Touch</div>
+      <div class="sep-line"></div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card hl-green">
+        <div class="card-tag tag-green">Positive Reply</div>
+        <div class="card-title">→ completed_reply</div>
+        <div class="card-body">Sequence stops. <strong>hs_lead_status = CONNECTED</strong>. AE notified to follow up personally.</div>
+      </div>
+      <div class="card hl-green">
+        <div class="card-tag tag-green">Meeting Booked</div>
+        <div class="card-title">→ completed_booked</div>
+        <div class="card-body">Calendar event detected. <strong>WF1 deal creation triggered</strong>. Pre-call brief auto-generated.</div>
+      </div>
+      <div class="card hl-red">
+        <div class="card-tag tag-red">Negative Reply</div>
+        <div class="card-title">→ reply_negative</div>
+        <div class="card-body">Sequence stops. <strong>hs_lead_status = UNQUALIFIED</strong>. No nurture pool — opt-out is permanent.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 2: PRE-QUALIFICATION                           -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 2</div>
+    <div class="section-title">Pre-Qualification — 7 Checks Before Scoring</div>
+    <div class="section-desc">All checks must pass before a contact reaches the qualification gate. Failure halts the sequence, logs reason, retries next sweep.</div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-tag tag-green">Data Requirements (Must Exist)</div>
+        <div class="rule"><div class="rn rn-g">1</div><div class="rc"><strong>kartel_score > 0</strong> — WF4 scoring must have completed</div></div>
+        <div class="rule"><div class="rn rn-g">2</div><div class="rc"><strong>Industry populated</strong> — from Clay enrichment. Required for template selection.</div></div>
+        <div class="rule"><div class="rn rn-g">3</div><div class="rc"><strong>jobtitle populated</strong> — needed for seniority classification</div></div>
+        <div class="rule"><div class="rn rn-g">4</div><div class="rc"><strong>Company association</strong> — contact linked to HubSpot company record</div></div>
+      </div>
+      <div class="card">
+        <div class="card-tag tag-red">Conflict Checks (Must Not Exist)</div>
+        <div class="rule"><div class="rn rn-r">5</div><div class="rc"><strong>No active deal</strong> — any pipeline except Closed Lost. If found → disqualified, AE handles.</div></div>
+        <div class="rule"><div class="rn rn-r">6</div><div class="rc"><strong>sdr_sequence_status ≠ active</strong> — no parallel sequence for same contact</div></div>
+        <div class="rule"><div class="rn rn-r">7</div><div class="rc"><strong>No same-company active sequence</strong> — search by domain. Duplicate triggers multi-stakeholder signal instead.</div></div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note y">Failure → sdr_sequence_status = not_started. Logged to #klaw-rev-logs. Retries next sweep.</div>
+      <div class="note b">Clay unavailable >48hrs triggers escalation alert to #klaw-rev-output.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 3: SCORING                                     -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 3</div>
+    <div class="section-title">Qualification Gate — kartel_score Breakdown & Tier Routing</div>
+    <div class="section-desc">The <strong>kartel_score</strong> (0–100) is calculated by WF4 from four weighted components. Score is snapshotted at qualification time into <strong>sdr_qualification_score</strong> — later changes don't affect an active sequence.</div>
+
+    <div class="grid g4">
+      <div class="card hl-blue">
+        <div class="card-tag tag-blue">0–30 pts</div>
+        <div class="card-title">Firmographic Fit</div>
+        <div class="card-body"><strong>Source:</strong> Clay<br>Revenue, industry alignment, headcount. No Clay data = defaults to <strong>0</strong>.</div>
+      </div>
+      <div class="card hl-blue">
+        <div class="card-tag tag-blue">0–20 pts</div>
+        <div class="card-title">Contact Seniority</div>
+        <div class="card-body"><strong>Source:</strong> Clay jobtitle<br>C-suite=20, VP=15, Dir=12, Mgr=8, IC=4.</div>
+      </div>
+      <div class="card hl-green">
+        <div class="card-tag tag-green">0–25 pts</div>
+        <div class="card-title">Engagement Signals</div>
+        <div class="card-body"><strong>Source:</strong> HubSpot + form<br>Form=+8, Inbound=+8, Visits=+3, Opens=+3, Downloads=+3.</div>
+      </div>
+      <div class="card hl-purple">
+        <div class="card-tag tag-purple">0–25 pts</div>
+        <div class="card-title">Qualification Signals</div>
+        <div class="card-body"><strong>Source:</strong> Form fields<br>Pain, budget, timeline, DM identified. Up to 6 pts each.</div>
+      </div>
+    </div>
+
+    <div class="sep">
+      <div class="sep-line"></div>
+      <div class="sep-label">kartel_score → Tier → Action → AE Owner</div>
+      <div class="sep-line"></div>
+    </div>
+
+    <table class="tbl">
+      <thead>
+        <tr><th>kartel_score</th><th>Tier</th><th>Action</th><th>Deal Owner</th><th>HubSpot ID</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="v-g">75–100</td><td>Enterprise</td><td><span class="badge b-auto">Auto-Send</span></td><td>Ben Kusin</td><td class="mono">159215803</td></tr>
+        <tr><td class="v-g">50–74</td><td>Mid-Market</td><td><span class="badge b-auto">Auto-Send</span></td><td>Emmet Reilly</td><td class="mono">160266467</td></tr>
+        <tr><td class="v-g">40–49</td><td>SMB (upper)</td><td><span class="badge b-auto">Auto-Send</span></td><td>Lenox Huh</td><td class="mono">162439022</td></tr>
+        <tr><td class="v-y">25–39</td><td>SMB (lower)</td><td><span class="badge b-manual">Human Review</span></td><td>Lenox Huh</td><td class="mono">162439022</td></tr>
+        <tr><td class="v-r">0–24</td><td>Unknown</td><td><span class="badge b-crit">No Action</span></td><td>—</td><td class="mono">—</td></tr>
+      </tbody>
+    </table>
+
+    <div class="notes">
+      <div class="note g">kartel_score ≥ 40 = zero human intervention. Fully autonomous send.</div>
+      <div class="note y">Score snapshot locked in sdr_qualification_score at qualification time.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 4: TEMPLATE SELECTION                          -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 4</div>
+    <div class="section-title">Template Selection — Industry × Seniority Matrix</div>
+    <div class="section-desc">Template family is locked at qualification. Each family has 3 files: touch-1.md, touch-2.md, touch-3.md.</div>
+
+    <table class="tbl">
+      <thead>
+        <tr><th>Industry</th><th>Seniority</th><th>Family</th><th>Path</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>CPG</td><td>C-suite / VP</td><td class="v-g">cpg-c-suite</td><td class="mono">rev/templates/inbound/cpg-c-suite/</td></tr>
+        <tr><td>CPG</td><td>Director+</td><td class="v-b">cpg-vp-director</td><td class="mono">rev/templates/inbound/cpg-vp-director/</td></tr>
+        <tr><td>Automotive</td><td>C-suite / VP</td><td class="v-g">automotive-c-suite</td><td class="mono">rev/templates/inbound/automotive-c-suite/</td></tr>
+        <tr><td>Beauty / Fashion</td><td>Any senior</td><td class="v-g">beauty-fashion-c-suite</td><td class="mono">rev/templates/inbound/beauty-fashion-c-suite/</td></tr>
+        <tr><td>eCommerce</td><td>Any senior</td><td class="v-b">ecommerce-c-suite</td><td class="mono">rev/templates/inbound/ecommerce-c-suite/</td></tr>
+        <tr><td>Real Estate</td><td>Any senior</td><td class="v-b">real-estate-c-suite</td><td class="mono">rev/templates/inbound/real-estate-c-suite/</td></tr>
+        <tr><td>Other / Unknown</td><td>Any senior</td><td class="v-y">generic-qualified</td><td class="mono">rev/templates/inbound/generic-qualified/</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sep">
+      <div class="sep-line"></div>
+      <div class="sep-label">Template Variables</div>
+      <div class="sep-line"></div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card">
+        <div class="card-tag tag-gray">Contact Data</div>
+        <div class="card-body"><span class="prop">{{firstname}}</span> <span class="prop">{{company}}</span> <span class="prop">{{title}}</span> <span class="prop">{{industry}}</span></div>
+      </div>
+      <div class="card">
+        <div class="card-tag tag-gray">Signal Data</div>
+        <div class="card-body"><span class="prop">{{form_signal}}</span> <span class="prop">{{clay_signal}}</span> <span class="prop">{{reference_companies}}</span> <span class="prop">{{case_study_metric}}</span></div>
+      </div>
+      <div class="card">
+        <div class="card-tag tag-gray">AE Routing</div>
+        <div class="card-body"><span class="prop">{{ae_name}}</span> <span class="prop">{{ae_title}}</span> <span class="prop">{{ae_calendly_link}}</span></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 5A: TOUCH 1                                    -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 5a</div>
+    <div class="touch t1">
+      <div class="touch-header">
+        <div class="touch-tag" style="color:#4ADE80;">Touch 1</div>
+        <div class="touch-title">Initial Response</div>
+      </div>
+      <div class="touch-timing">Day 0 · Morning sweep only · Creates new Gmail thread</div>
+
+      <div class="touch-grid">
+        <div>
+          <div class="tf"><div class="tf-k">sdr_sequence_status</div><div class="tf-v" style="color:#4ADE80;">active</div></div>
+          <div class="tf"><div class="tf-k">sdr_sequence_step</div><div class="tf-v">1</div></div>
+          <div class="tf"><div class="tf-k">sdr_sequence_start_date</div><div class="tf-v">today</div></div>
+          <div class="tf"><div class="tf-k">sdr_last_send_date</div><div class="tf-v">today</div></div>
+        </div>
+        <div>
+          <div class="tf"><div class="tf-k">sdr_next_send_date</div><div class="tf-v">today + 3 biz</div></div>
+          <div class="tf"><div class="tf-k">sdr_gmail_thread_id</div><div class="tf-v" style="color:#F87171;">captured ← critical</div></div>
+          <div class="tf"><div class="tf-k">hs_lead_status</div><div class="tf-v">ATTEMPTED_TO_CONTACT</div></div>
+          <div class="tf"><div class="tf-k">HubSpot engagement</div><div class="tf-v" style="color:#94A3B8;">logged</div></div>
+        </div>
+      </div>
+
+      <div class="touch-note gn">
+        <strong>Actions:</strong> Send from sdr@kartel.ai → log HubSpot engagement → update description → post to #klaw-rev-output. Thread ID captured here is used for all reply detection and subsequent touches.
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 5B: TOUCH 2                                    -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 5b</div>
+    <div class="touch t2">
+      <div class="touch-header">
+        <div class="touch-tag" style="color:#60A5FA;">Touch 2</div>
+        <div class="touch-title">Value-Add Follow-Up</div>
+      </div>
+      <div class="touch-timing">Day 3 (biz) · Morning sweep only · Reply-to-self on existing thread</div>
+
+      <div class="touch-grid">
+        <div>
+          <div class="tf"><div class="tf-k">Condition</div><div class="tf-v">step=1, no reply, next_send ≤ today</div></div>
+          <div class="tf"><div class="tf-k">sdr_sequence_step</div><div class="tf-v">2</div></div>
+          <div class="tf"><div class="tf-k">sdr_last_send_date</div><div class="tf-v">today</div></div>
+        </div>
+        <div>
+          <div class="tf"><div class="tf-k">sdr_next_send_date</div><div class="tf-v">today + 4 biz</div></div>
+          <div class="tf"><div class="tf-k">Pre-send safety</div><div class="tf-v" style="color:#FBBF24;">re-read Gmail thread</div></div>
+          <div class="tf"><div class="tf-k">Clay dependency</div><div class="tf-v" style="color:#86EFAC;">none (stored data)</div></div>
+        </div>
+      </div>
+
+      <div class="touch-note bn">
+        <strong>Pre-send check:</strong> Re-reads Gmail thread for reply BEFORE sending — if reply found, exits to reply detection instead. Uses stored template data from qualification, no fresh Clay call. Includes case study / relevant metric.
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 5C: TOUCH 3                                    -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 5c</div>
+    <div class="touch t3">
+      <div class="touch-header">
+        <div class="touch-tag" style="color:#C4B5FD;">Touch 3</div>
+        <div class="touch-title">Direct Ask + Calendly Booking</div>
+      </div>
+      <div class="touch-timing">Day 7 (biz) · Morning sweep only · Reply-to-self on existing thread · Final touch</div>
+
+      <div class="touch-grid">
+        <div>
+          <div class="tf"><div class="tf-k">Condition</div><div class="tf-v">step=2, no reply, next_send ≤ today</div></div>
+          <div class="tf"><div class="tf-k">sdr_sequence_step</div><div class="tf-v">3</div></div>
+          <div class="tf"><div class="tf-k">sdr_last_send_date</div><div class="tf-v">today</div></div>
+        </div>
+        <div>
+          <div class="tf"><div class="tf-k">sdr_next_send_date</div><div class="tf-v">today + 5 biz</div></div>
+          <div class="tf"><div class="tf-k">Includes</div><div class="tf-v" style="color:#C4B5FD;">{{ae_calendly_link}}</div></div>
+          <div class="tf"><div class="tf-k">Pre-send safety</div><div class="tf-v" style="color:#FBBF24;">re-read Gmail thread</div></div>
+        </div>
+      </div>
+
+      <div class="touch-note pn">
+        <strong>Final touch.</strong> If no reply within +5 biz days (~Day 12): contact exits to nurture pool. hs_lead_status → BAD_TIMING. Monthly AE task created. WF5 re-engagement eligible at 90 days.
+      </div>
+    </div>
+
+    <div class="bar">
+      <div class="bar-item"><div class="bar-dot" style="background:#22C55E;"></div>All touches from <strong>sdr@kartel.ai</strong></div>
+      <div class="bar-sep"></div>
+      <div class="bar-item"><div class="bar-dot" style="background:#3B82F6;"></div>Same Gmail thread</div>
+      <div class="bar-sep"></div>
+      <div class="bar-item"><div class="bar-dot" style="background:#F59E0B;"></div>Every send → <strong>HubSpot engagement</strong></div>
+      <div class="bar-sep"></div>
+      <div class="bar-item"><div class="bar-dot" style="background:#A78BFA;"></div>Signed as <strong>assigned AE</strong></div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 6: REPLY DETECTION                             -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 6</div>
+    <div class="section-title">Reply Detection & Classification</div>
+    <div class="section-desc">Runs ALL sweeps (morning, midday, evening). Thread-based: reads sdr_gmail_thread_id for messages FROM the contact's email.</div>
+
+    <table class="tbl">
+      <thead>
+        <tr><th>Type</th><th>Signal Patterns</th><th>Status</th><th>Outcome</th><th>hs_lead_status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="v-g">Positive</td>
+          <td>"interested", "tell me more", "let's set up a call", service questions</td>
+          <td class="mono">completed_reply</td>
+          <td class="mono">reply_positive</td>
+          <td class="mono">CONNECTED</td>
+        </tr>
+        <tr>
+          <td class="v-r">Negative</td>
+          <td>"not interested", "remove me", "unsubscribe", "no thanks"</td>
+          <td class="mono">completed_reply</td>
+          <td class="mono">reply_negative</td>
+          <td class="mono">UNQUALIFIED</td>
+        </tr>
+        <tr>
+          <td class="v-y">OOO</td>
+          <td>"out of office", "back on {date}", auto-reply headers</td>
+          <td class="mono">paused</td>
+          <td>—</td>
+          <td>unchanged</td>
+        </tr>
+        <tr>
+          <td class="v-b">Ambiguous</td>
+          <td>No clear match</td>
+          <td>unchanged</td>
+          <td>—</td>
+          <td>unchanged</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="notes">
+      <div class="note r">Ambiguous replies NEVER auto-classified. Always escalated to human via #klaw-rev-output.</div>
+      <div class="note g">Phase B (reply detection) runs BEFORE Phase D (follow-up sends) every sweep — prevents sending after reply.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 7: BOOKING → DEAL                              -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 7</div>
+    <div class="section-title">Meeting Booking → Deal Creation</div>
+    <div class="section-desc">Calendly creates Calendar events with prospect's email as attendee. WF6 Step 4 calendar scan detects these — no separate API needed.</div>
+
+    <div class="grid g2">
+      <div class="card hl-green">
+        <div class="card-tag tag-green">Detection & Exit</div>
+        <div class="card-body">
+          Calendar scan matches attendee email to <strong>sdr_sequence_status = active</strong> contact.<br><br>
+          Set: <span class="prop">sdr_booking_detected = true</span> <span class="prop">sdr_sequence_status = completed_booked</span> <span class="prop">hs_lead_status = Meeting Set</span>
+        </div>
+      </div>
+      <div class="card hl-blue">
+        <div class="card-tag tag-blue">WF1 Deal Creation</div>
+        <div class="card-body">
+          <strong>Pipeline:</strong> Enterprise (1880222397)<br>
+          <strong>Stage:</strong> Discovery (2978915058)<br>
+          <strong>Name:</strong> {Company} — Inbound SDR<br>
+          <strong>Amount:</strong> Enterprise=$150K, Mid=$75K, SMB=$25K<br>
+          <strong>Close:</strong> D+60 · <strong>Owner:</strong> sdr_assigned_ae
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note g">AE follow-up task created (due: meeting date - 1). Pre-call brief auto-generated. Posted to #klaw-rev-output.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 8: EDGE CASES                                  -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 8</div>
+    <div class="section-title">Edge Cases</div>
+
+    <div class="grid g2">
+      <div class="card hl-yellow">
+        <div class="card-tag tag-yellow">Reply Between Touches</div>
+        <div class="card-body">Phase B (reply check) runs before Phase D (sends). Additional safety: Phase D re-reads Gmail thread before each send.</div>
+      </div>
+      <div class="card hl-yellow">
+        <div class="card-tag tag-yellow">Duplicate Form Submit</div>
+        <div class="card-body"><strong>Active seq:</strong> bump engagement +5, flag AE. <strong>No-reply complete:</strong> reset, restart Touch 1. <strong>Converted:</strong> skip SDR, flag AE.</div>
+      </div>
+      <div class="card hl-red">
+        <div class="card-tag tag-red">Already in Pipeline</div>
+        <div class="card-body">Pre-check #5 catches. Contact with active deal → disqualified. Deal owner notified of form submission.</div>
+      </div>
+      <div class="card hl-red">
+        <div class="card-tag tag-red">Clay Fails</div>
+        <div class="card-body"><strong>Before T1:</strong> blocks start (Safeguard #2), retries next sweep. >48hrs → escalation. <strong>Before T2/T3:</strong> no dependency, uses stored data.</div>
+      </div>
+      <div class="card hl-blue">
+        <div class="card-tag tag-blue">Score Changes Mid-Sequence</div>
+        <div class="card-body">Sequence runs to completion — decision locked via sdr_qualification_score. Exception: score drops to 0 → human review.</div>
+      </div>
+      <div class="card hl-blue">
+        <div class="card-tag tag-blue">Multi-Contact Same Company</div>
+        <div class="card-body">Pre-check #7 blocks parallel sequence. New contact enriched/scored. Original gets multi-stakeholder signal, engagement +5.</div>
+      </div>
+      <div class="card hl-red">
+        <div class="card-tag tag-red">Unsubscribe Mid-Sequence</div>
+        <div class="card-body">Immediate stop. Status = completed_reply, outcome = reply_negative. No nurture pool. Opt-out is permanent.</div>
+      </div>
+      <div class="card hl-green">
+        <div class="card-tag tag-green">Nurture Exit (No Reply × 3)</div>
+        <div class="card-body">hs_lead_status = BAD_TIMING. Monthly AE task (LOW). 3 months no action → archive. WF5 eligible at 90 days.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 9: DELIVERABILITY + PROPERTIES                 -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 9</div>
+    <div class="section-title">Deliverability & New HubSpot Properties</div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-tag tag-gray">Send Caps (Shared WF7 + WF8)</div>
+        <table class="tbl">
+          <tbody>
+            <tr><td>Daily cap (warm-up)</td><td class="v-y">10 → 20 → 30</td></tr>
+            <tr><td>Daily cap (post warm-up)</td><td class="v-g">50</td></tr>
+            <tr><td>Per-hour cap</td><td>10</td></tr>
+            <tr><td>Min gap between sends</td><td>60 seconds</td></tr>
+            <tr><td>Bounce rate threshold</td><td class="v-r">3% → pause + alert</td></tr>
+            <tr><td>Spam complaint rate</td><td class="v-r">0.1% → pause + escalate Niels</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:14px;font-size:11px;color:#86EFAC;"><strong>Priority rule:</strong> WF7 inbound sends before WF8 outbound if daily cap is approaching.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-tag tag-purple">14 New Properties (Contact Object)</div>
+        <div class="card-body" style="margin-bottom:10px;">All prefixed <strong>sdr_</strong> to avoid collisions. Create before go-live.</div>
+        <table class="tbl">
+          <tbody>
+            <tr><td class="mono" style="font-size:9px;">sdr_sequence_status</td><td style="font-size:10px;">Enum (7 values)</td></tr>
+            <tr><td class="mono" style="font-size:9px;">sdr_sequence_step</td><td style="font-size:10px;">Number (0–3)</td></tr>
+            <tr><td class="mono" style="font-size:9px;">sdr_sequence_start_date</td><td style="font-size:10px;">Date</td></tr>
+            <tr><td class="mono" style="font-size:9px;">sdr_last_send_date</td><td style="font-size:10px;">Date</td></tr>
+            <tr><td class="mono" style="font-size:9px;">sdr_next_send_date</td><td style="font-size:10px;">Date (pre-calc'd biz day)</td></tr>
+            <tr><td class="mono" style="font-size:9px;">sdr_reply_detected</td><td style="font-size:10px;">Boolean</td></tr>
+            <tr><td class="mono" style="font-size:9px;">sdr_reply_date</td><td style="font-size:10px;">Date</td></tr>
+            <tr><td class="mono" style="font-size:9px;">sdr_booking_detected</td><td style="font-size:10px;">Boolean</td></tr>
+            <tr><td class="mono" style="font-size:9px;">sdr_booking_date</td><td style="font-size:10px;">Date</td></tr>
+            <tr><td class="mono" style="font-size:9px;">sdr_sequence_outcome</td><td style="font-size:10px;">Enum (7 values)</td></tr>
+            <tr><td class="mono" style="font-size:9px;">sdr_template_family</td><td style="font-size:10px;">Text</td></tr>
+            <tr><td class="mono" style="font-size:9px;">sdr_assigned_ae</td><td style="font-size:10px;">Text</td></tr>
+            <tr><td class="mono" style="font-size:9px;">sdr_gmail_thread_id</td><td style="font-size:10px;">Text</td></tr>
+            <tr><td class="mono" style="font-size:9px;">sdr_qualification_score</td><td style="font-size:10px;">Number (0–100)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

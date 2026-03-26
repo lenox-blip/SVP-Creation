@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kartel Klaw — SDR Agent Proposal</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #0B0F1A;
+      padding: 56px 64px;
+      color: #E2E8F0;
+      min-height: 100vh;
+    }
+
+    /* ─── HEADER ─── */
+    .page-header {
+      margin-bottom: 56px;
+      position: relative;
+    }
+
+    .page-header::after {
+      content: '';
+      position: absolute;
+      bottom: -28px;
+      left: 0;
+      width: 80px;
+      height: 3px;
+      background: linear-gradient(90deg, #3B82F6, #8B5CF6);
+      border-radius: 2px;
+    }
+
+    .page-tag {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #3B82F6;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.15);
+      padding: 6px 14px;
+      border-radius: 4px;
+      margin-bottom: 18px;
+    }
+
+    .page-title {
+      font-size: 38px;
+      font-weight: 800;
+      color: #F8FAFC;
+      letter-spacing: -1px;
+      line-height: 1.1;
+      margin-bottom: 12px;
+    }
+
+    .page-subtitle {
+      font-size: 15px;
+      color: #64748B;
+      font-weight: 400;
+      line-height: 1.5;
+    }
+
+    /* ─── SECTIONS ─── */
+    .section {
+      background: #111827;
+      border-radius: 20px;
+      padding: 40px 44px;
+      margin-bottom: 40px;
+      border: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(59,130,246,0.3), rgba(139,92,246,0.3), transparent);
+    }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #F1F5F9;
+      letter-spacing: -0.5px;
+      margin-bottom: 32px;
+    }
+
+    /* ═══════════════════════════════════════ */
+    /* SECTION 1: AGENT LAYER / HIERARCHY     */
+    /* ═══════════════════════════════════════ */
+
+    .hierarchy-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    /* Orchestrator node */
+    .orchestrator-node {
+      background: linear-gradient(135deg, #DC2626, #B91C1C);
+      border-radius: 16px;
+      padding: 22px 40px;
+      text-align: center;
+      min-width: 240px;
+      border: 2px solid rgba(239,68,68,0.3);
+      box-shadow: 0 0 40px rgba(220,38,38,0.15);
+      position: relative;
+    }
+
+    .orchestrator-node .node-name {
+      font-size: 18px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: 2px;
+    }
+
+    .orchestrator-node .node-role {
+      font-size: 11px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.7);
+      margin-top: 4px;
+    }
+
+    /* Vertical connector */
+    .v-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 4px 0;
+    }
+
+    .v-line {
+      width: 2px;
+      height: 32px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.15), rgba(255,255,255,0.06));
+    }
+
+    .v-arrow {
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid rgba(255,255,255,0.12);
+    }
+
+    .v-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: #475569;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 0;
+    }
+
+    /* Agent row */
+    .agent-row {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .agent-card {
+      border-radius: 14px;
+      padding: 18px 24px;
+      text-align: center;
+      min-width: 150px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      position: relative;
+    }
+
+    .agent-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .agent-card .agent-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: 1.5px;
+    }
+
+    .agent-card .agent-role {
+      font-size: 10px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.65);
+      margin-top: 4px;
+    }
+
+    /* Agent color types */
+    .agent-rev-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .agent-rev {
+      background: linear-gradient(135deg, #2563EB, #1D4ED8);
+      border: 2px solid rgba(59,130,246,0.4);
+      box-shadow: 0 0 30px rgba(37,99,235,0.15);
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      z-index: 2;
+    }
+
+    /* SDR extension docked below REV */
+    .sdr-extension {
+      background: linear-gradient(180deg, rgba(37,99,235,0.15), rgba(124,58,237,0.12));
+      border: 1px dashed rgba(139,92,246,0.4);
+      border-top: 2px solid rgba(59,130,246,0.4);
+      border-radius: 0 0 14px 14px;
+      padding: 10px 18px 12px;
+      text-align: center;
+      min-width: 180px;
+      position: relative;
+    }
+
+    .sdr-extension-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #F59E0B, #D97706);
+      color: #FFF;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 7px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      padding: 2px 8px;
+      border-radius: 8px;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .sdr-extension-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: #C4B5FD;
+      letter-spacing: 0.5px;
+    }
+
+    .sdr-extension-role {
+      font-size: 9px;
+      color: rgba(196,181,253,0.6);
+      margin-top: 2px;
+    }
+
+    .agent-other {
+      background: linear-gradient(135deg, #374151, #1F2937);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* Trust level badge */
+    .trust-badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      padding: 2px 7px;
+      border-radius: 8px;
+      margin-top: 6px;
+    }
+
+    .trust-4 {
+      background: rgba(34,197,94,0.15);
+      color: #4ADE80;
+      border: 1px solid rgba(34,197,94,0.2);
+    }
+
+    .trust-elevated {
+      background: rgba(245,158,11,0.15);
+      color: #FBBF24;
+      border: 1px solid rgba(245,158,11,0.2);
+    }
+
+    /* Hierarchy annotation */
+    .hierarchy-note {
+      text-align: center;
+      margin-top: 28px;
+      padding: 14px 24px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      max-width: 700px;
+    }
+
+    .hierarchy-note p {
+      font-size: 12px;
+      color: #64748B;
+      line-height: 1.6;
+    }
+
+    .hierarchy-note strong {
+      color: #94A3B8;
+    }
+
+    /* ═══════════════════════════════════════ */
+    /* SECTION 2: AGENT WORKFLOWS             */
+    /* ═══════════════════════════════════════ */
+
+    .workflow-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .wf-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 20px 22px;
+      transition: border-color 0.2s ease;
+    }
+
+    .wf-card:hover {
+      border-color: rgba(59,130,246,0.2);
+    }
+
+    .wf-card-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .wf-card-id.id-blue { color: #3B82F6; }
+    .wf-card-id.id-green { color: #22C55E; }
+    .wf-card-id.id-yellow { color: #F59E0B; }
+    .wf-card-id.id-purple { color: #A78BFA; }
+
+    .wf-card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #F1F5F9;
+      margin-bottom: 6px;
+      letter-spacing: -0.2px;
+    }
+
+    .wf-card-desc {
+      font-size: 11px;
+      color: #64748B;
+      line-height: 1.55;
+    }
+
+    .wf-status {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+    .wf-active {
+      background: rgba(34,197,94,0.12);
+      color: #4ADE80;
+      border: 1px solid rgba(34,197,94,0.15);
+    }
+
+    .wf-on-demand {
+      background: rgba(59,130,246,0.12);
+      color: #60A5FA;
+      border: 1px solid rgba(59,130,246,0.15);
+    }
+
+    .wf-new {
+      background: rgba(245,158,11,0.12);
+      color: #FBBF24;
+      border: 1px solid rgba(245,158,11,0.15);
+    }
+
+    /* Separator between existing and new */
+    .wf-separator {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 8px 0;
+    }
+
+    .wf-separator-line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(139,92,246,0.3), transparent);
+    }
+
+    .wf-separator-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #7C3AED;
+      white-space: nowrap;
+    }
+
+    /* ═══════════════════════════════════════ */
+    /* SECTION 3: SDR EXTENSION               */
+    /* ═══════════════════════════════════════ */
+
+    .sdr-intro {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .sdr-intro p {
+      font-size: 14px;
+      color: #94A3B8;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .sdr-intro .highlight {
+      color: #3B82F6;
+      font-weight: 600;
+    }
+
+    .sdr-two-col {
+      display: grid;
+      grid-template-columns: 1fr 60px 1fr;
+      gap: 0;
+      align-items: stretch;
+    }
+
+    .sdr-bubble {
+      border-radius: 20px;
+      padding: 32px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .sdr-bubble::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+    }
+
+    .sdr-inbound {
+      background: linear-gradient(180deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02));
+      border: 1px solid rgba(34,197,94,0.15);
+    }
+
+    .sdr-inbound::before {
+      background: linear-gradient(90deg, #22C55E, #16A34A);
+    }
+
+    .sdr-outbound {
+      background: linear-gradient(180deg, rgba(59,130,246,0.08), rgba(59,130,246,0.02));
+      border: 1px solid rgba(59,130,246,0.15);
+    }
+
+    .sdr-outbound::before {
+      background: linear-gradient(90deg, #3B82F6, #2563EB);
+    }
+
+    .sdr-bubble-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .tag-green { color: #4ADE80; }
+    .tag-blue { color: #60A5FA; }
+
+    .sdr-bubble-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #F1F5F9;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+
+    .sdr-bubble-subtitle {
+      font-size: 12px;
+      color: #64748B;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .sdr-flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .sdr-step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .step-green { background: rgba(34,197,94,0.25); color: #4ADE80; border: 1px solid rgba(34,197,94,0.3); }
+    .step-blue { background: rgba(59,130,246,0.25); color: #60A5FA; border: 1px solid rgba(59,130,246,0.3); }
+
+    .sdr-step-content {
+      flex: 1;
+    }
+
+    .sdr-step-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #E2E8F0;
+      letter-spacing: -0.1px;
+    }
+
+    .sdr-step-desc {
+      font-size: 10px;
+      color: #64748B;
+      margin-top: 2px;
+      line-height: 1.5;
+    }
+
+    /* Center divider */
+    .sdr-center-divider {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .sdr-center-line {
+      width: 1px;
+      flex: 1;
+      background: linear-gradient(180deg, transparent, rgba(255,255,255,0.08), transparent);
+    }
+
+    .sdr-center-plus {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: #475569;
+      font-weight: 300;
+    }
+
+    /* Bottom bar: shared identity */
+    .sdr-shared-bar {
+      margin-top: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 18px 28px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+    }
+
+    .sdr-shared-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sdr-shared-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .sdr-shared-text {
+      font-size: 12px;
+      color: #94A3B8;
+      font-weight: 500;
+    }
+
+    .sdr-shared-text strong {
+      color: #E2E8F0;
+    }
+
+    .sdr-divider-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: #334155;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── HEADER ─── -->
+  <div class="page-header">
+    <div class="page-tag">Internal Proposal · March 2026</div>
+    <div class="page-title">Automated SDR Agent</div>
+    <div class="page-subtitle">Extending the Klaw system with inbound qualification + outbound campaign capabilities</div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 1: AGENT LAYER — SYSTEM HIERARCHY              -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 1</div>
+    <div class="section-title">Agent Layer — Klaw System Hierarchy</div>
+
+    <div class="hierarchy-container">
+
+      <!-- ULTRON -->
+      <div class="orchestrator-node">
+        <div class="node-name">ULTRON</div>
+        <div class="node-role">Master Orchestrator</div>
+      </div>
+
+      <div class="v-connector">
+        <div class="v-line"></div>
+        <div class="v-label">dispatches to</div>
+        <div class="v-arrow"></div>
+      </div>
+
+      <!-- Department Agents Row -->
+      <div class="agent-row">
+        <div class="agent-rev-group">
+          <div class="agent-card agent-rev">
+            <div class="agent-name">REV</div>
+            <div class="agent-role">Sales Intelligence</div>
+            <div class="trust-badge trust-4">Trust Level 4 · Autonomous</div>
+          </div>
+          <div class="sdr-extension">
+            <div class="sdr-extension-badge">New Extension</div>
+            <div class="sdr-extension-name">SDR Capabilities</div>
+            <div class="sdr-extension-role">Inbound + Outbound Email</div>
+            <div class="trust-badge trust-elevated" style="margin-top:5px;">Elevated · Email Send</div>
+          </div>
+        </div>
+        <div class="agent-card agent-other">
+          <div class="agent-name">PROD</div>
+          <div class="agent-role">Production</div>
+        </div>
+        <div class="agent-card agent-other">
+          <div class="agent-name">GEN</div>
+          <div class="agent-role">Generative</div>
+        </div>
+        <div class="agent-card agent-other">
+          <div class="agent-name">KOMM</div>
+          <div class="agent-role">Community</div>
+        </div>
+      </div>
+
+      <div class="hierarchy-note">
+        <p><strong>SDR is not a new agent</strong> — it extends REV with two new workflows. Same machine, same integrations (HubSpot, Clay, Gmail, Slack), same data layer. REV currently operates under a no-client-contact policy; SDR adds a scoped trust elevation for email sending via WF7 + WF8 only. All other REV operations remain unchanged.</p>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 2: AGENT WORKFLOWS                              -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 2</div>
+    <div class="section-title">Agent Workflows — What REV + SDR Do</div>
+
+    <div class="workflow-grid">
+
+      <!-- Existing REV workflows -->
+      <div class="wf-card">
+        <div class="wf-card-id id-blue">WF1</div>
+        <div class="wf-card-title">Lead Creation</div>
+        <div class="wf-card-desc">New contacts, companies, and deals created in HubSpot from meetings, referrals, and inbound signals.</div>
+        <div class="wf-status wf-active">Active</div>
+      </div>
+
+      <div class="wf-card">
+        <div class="wf-card-id id-blue">WF2</div>
+        <div class="wf-card-title">Deal Progression</div>
+        <div class="wf-card-desc">Moves deals through pipeline stages based on meeting transcripts, emails, and field completeness.</div>
+        <div class="wf-status wf-active">Active</div>
+      </div>
+
+      <div class="wf-card">
+        <div class="wf-card-id id-green">WF4</div>
+        <div class="wf-card-title">Lead Scoring</div>
+        <div class="wf-card-desc">Composite 0–100 score using firmographic fit, seniority, engagement signals, and qualification data.</div>
+        <div class="wf-status wf-active">Active</div>
+      </div>
+
+      <div class="wf-card">
+        <div class="wf-card-id id-blue">WF5</div>
+        <div class="wf-card-title">Re-Engagement</div>
+        <div class="wf-card-desc">Revives Closed Lost and stalled deals after cooldown, re-enriches via Clay, and resurfaces for outreach.</div>
+        <div class="wf-status wf-active">Active</div>
+      </div>
+
+      <div class="wf-card">
+        <div class="wf-card-id id-green">WF6</div>
+        <div class="wf-card-title">Daily Sweep</div>
+        <div class="wf-card-desc">Morning + midday CRM scan. Transcript detection, calendar scan, score decay, pipeline health report.</div>
+        <div class="wf-status wf-active">Active · Automated</div>
+      </div>
+
+      <div class="wf-card">
+        <div class="wf-card-id id-yellow">On-Demand</div>
+        <div class="wf-card-title">Meeting Briefs + Reports</div>
+        <div class="wf-card-desc">Pre-call research docs, daily REV summaries, weekly pipeline reports. Generated on request or by schedule.</div>
+        <div class="wf-status wf-on-demand">On-Demand</div>
+      </div>
+
+      <!-- Separator -->
+      <div class="wf-separator">
+        <div class="wf-separator-line"></div>
+        <div class="wf-separator-label">New — SDR Extension</div>
+        <div class="wf-separator-line"></div>
+      </div>
+
+      <!-- New SDR workflows -->
+      <div class="wf-card" style="border-color:rgba(34,197,94,0.2);background:rgba(34,197,94,0.04);">
+        <div class="wf-card-id id-green">WF7</div>
+        <div class="wf-card-title">Inbound SDR</div>
+        <div class="wf-card-desc">Auto-qualifies website form submissions, selects personalized templates, and sends via sdr@kartel.ai.</div>
+        <div class="wf-status wf-new">Proposed</div>
+      </div>
+
+      <div class="wf-card" style="border-color:rgba(59,130,246,0.2);background:rgba(59,130,246,0.04);">
+        <div class="wf-card-id id-blue">WF8</div>
+        <div class="wf-card-title">Outbound Campaigns</div>
+        <div class="wf-card-desc">Batch-enriches, personalizes, and sends targeted outreach with human approval gates before every send.</div>
+        <div class="wf-status wf-new">Proposed</div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 3: SDR EXTENSION — INBOUND + OUTBOUND          -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 3</div>
+    <div class="section-title">New — SDR Extension: Two Core Workflows</div>
+
+    <div class="sdr-intro">
+      <p>The SDR extension adds two capabilities to REV. All emails send from a <span class="highlight">dedicated sdr@kartel.ai identity</span>, signed as the routed AE — never as AI. Every send passes through either an auto-qualification gate or a human approval gate.</p>
+    </div>
+
+    <div class="sdr-two-col">
+
+      <!-- LEFT: INBOUND -->
+      <div class="sdr-bubble sdr-inbound">
+        <div class="sdr-bubble-tag tag-green">Workflow 7</div>
+        <div class="sdr-bubble-title">Inbound SDR</div>
+        <div class="sdr-bubble-subtitle">Website form → qualified response in minutes</div>
+
+        <div class="sdr-flow-step">
+          <div class="sdr-step-num step-green">1</div>
+          <div class="sdr-step-content">
+            <div class="sdr-step-title">Form Submission Detected</div>
+            <div class="sdr-step-desc">Website form creates a HubSpot Lead. REV's morning sweep picks it up.</div>
+          </div>
+        </div>
+
+        <div class="sdr-flow-step">
+          <div class="sdr-step-num step-green">2</div>
+          <div class="sdr-step-content">
+            <div class="sdr-step-title">Clay Enrichment</div>
+            <div class="sdr-step-desc">Industry, revenue, headcount, and title enriched automatically.</div>
+          </div>
+        </div>
+
+        <div class="sdr-flow-step">
+          <div class="sdr-step-num step-green">3</div>
+          <div class="sdr-step-content">
+            <div class="sdr-step-title">Lead Scoring</div>
+            <div class="sdr-step-desc">Composite score (0–100) determines routing: auto-send, human review, or no action.</div>
+          </div>
+        </div>
+
+        <div class="sdr-flow-step">
+          <div class="sdr-step-num step-green">4</div>
+          <div class="sdr-step-content">
+            <div class="sdr-step-title">Template + Personalization</div>
+            <div class="sdr-step-desc">Industry × seniority matrix selects template. Clay signals fill personalization.</div>
+          </div>
+        </div>
+
+        <div class="sdr-flow-step">
+          <div class="sdr-step-num step-green">5</div>
+          <div class="sdr-step-content">
+            <div class="sdr-step-title">Send + Log</div>
+            <div class="sdr-step-desc">Email sent via sdr@kartel.ai. Engagement logged to HubSpot. Slack notified.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER DIVIDER -->
+      <div class="sdr-center-divider">
+        <div class="sdr-center-line"></div>
+        <div class="sdr-center-plus">+</div>
+        <div class="sdr-center-line"></div>
+      </div>
+
+      <!-- RIGHT: OUTBOUND -->
+      <div class="sdr-bubble sdr-outbound">
+        <div class="sdr-bubble-tag tag-blue">Workflow 8</div>
+        <div class="sdr-bubble-title">Outbound Campaigns</div>
+        <div class="sdr-bubble-subtitle">Targeted batch outreach with human approval</div>
+
+        <div class="sdr-flow-step">
+          <div class="sdr-step-num step-blue">1</div>
+          <div class="sdr-step-content">
+            <div class="sdr-step-title">Campaign Triggered</div>
+            <div class="sdr-step-desc">Ben or Emmet dispatch via Slack, or scheduled Monday batch.</div>
+          </div>
+        </div>
+
+        <div class="sdr-flow-step">
+          <div class="sdr-step-num step-blue">2</div>
+          <div class="sdr-step-content">
+            <div class="sdr-step-title">Audience Selection + Exclusions</div>
+            <div class="sdr-step-desc">Filter by industry, tier, lifecycle. Exclude clients, unsubscribes, and recently contacted.</div>
+          </div>
+        </div>
+
+        <div class="sdr-flow-step">
+          <div class="sdr-step-num step-blue">3</div>
+          <div class="sdr-step-content">
+            <div class="sdr-step-title">Enrich + Score</div>
+            <div class="sdr-step-desc">Clay enrichment for any gaps. Lead scores calculated for unscored contacts.</div>
+          </div>
+        </div>
+
+        <div class="sdr-flow-step">
+          <div class="sdr-step-num step-blue">4</div>
+          <div class="sdr-step-content">
+            <div class="sdr-step-title">Batch Assembly + Personalization</div>
+            <div class="sdr-step-desc">Templates matched per contact. Signals like funding, news, or growth woven in.</div>
+          </div>
+        </div>
+
+        <div class="sdr-flow-step">
+          <div class="sdr-step-num step-blue">5</div>
+          <div class="sdr-step-content">
+            <div class="sdr-step-title">Approval Gate → Send</div>
+            <div class="sdr-step-desc">Batch summary posted to Slack. Ben/Emmet reply SEND or HOLD. Then logged to HubSpot.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Shared infrastructure bar -->
+    <div class="sdr-shared-bar">
+      <div class="sdr-shared-item">
+        <div class="sdr-shared-dot" style="background:#3B82F6;"></div>
+        <div class="sdr-shared-text">Sends from <strong>sdr@kartel.ai</strong></div>
+      </div>
+      <div class="sdr-divider-dot"></div>
+      <div class="sdr-shared-item">
+        <div class="sdr-shared-dot" style="background:#22C55E;"></div>
+        <div class="sdr-shared-text">Signed as <strong>assigned AE</strong></div>
+      </div>
+      <div class="sdr-divider-dot"></div>
+      <div class="sdr-shared-item">
+        <div class="sdr-shared-dot" style="background:#F59E0B;"></div>
+        <div class="sdr-shared-text">Logged to <strong>HubSpot</strong></div>
+      </div>
+      <div class="sdr-divider-dot"></div>
+      <div class="sdr-shared-item">
+        <div class="sdr-shared-dot" style="background:#A78BFA;"></div>
+        <div class="sdr-shared-text">Isolated from <strong>team inboxes</strong></div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

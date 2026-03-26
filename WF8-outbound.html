@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kartel Klaw — WF8 Outbound Campaigns Deep Dive</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #0B0F1A;
+      padding: 64px 80px;
+      color: #E2E8F0;
+      min-height: 100vh;
+    }
+
+    /* ─── HEADER ─── */
+    .page-header { margin-bottom: 64px; position: relative; }
+
+    .page-header::after {
+      content: '';
+      position: absolute;
+      bottom: -28px;
+      left: 0;
+      width: 80px;
+      height: 3px;
+      background: linear-gradient(90deg, #3B82F6, #2563EB);
+      border-radius: 2px;
+    }
+
+    .page-tag {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #60A5FA;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.15);
+      padding: 6px 14px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+
+    .page-title {
+      font-size: 36px;
+      font-weight: 800;
+      color: #F8FAFC;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      margin-bottom: 14px;
+    }
+
+    .page-subtitle {
+      font-size: 14px;
+      color: #64748B;
+      font-weight: 400;
+      line-height: 1.6;
+      max-width: 660px;
+    }
+
+    /* ─── SECTION ─── */
+    .section {
+      background: #111827;
+      border-radius: 20px;
+      padding: 44px 48px;
+      margin-bottom: 36px;
+      border: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(59,130,246,0.3), rgba(59,130,246,0.1), transparent);
+    }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+
+    .section-title {
+      font-size: 21px;
+      font-weight: 700;
+      color: #F1F5F9;
+      letter-spacing: -0.4px;
+      margin-bottom: 10px;
+    }
+
+    .section-desc {
+      font-size: 12.5px;
+      color: #64748B;
+      line-height: 1.65;
+      margin-bottom: 32px;
+      max-width: 720px;
+    }
+
+    /* ─── GRIDS ─── */
+    .grid { display: grid; gap: 14px; }
+    .g2 { grid-template-columns: 1fr 1fr; }
+    .g3 { grid-template-columns: 1fr 1fr 1fr; }
+
+    /* ─── CARDS ─── */
+    .card {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 22px 24px;
+    }
+
+    .card.hl-green  { border-color: rgba(34,197,94,0.2);  background: rgba(34,197,94,0.035); }
+    .card.hl-blue   { border-color: rgba(59,130,246,0.2);  background: rgba(59,130,246,0.035); }
+    .card.hl-yellow { border-color: rgba(245,158,11,0.2);  background: rgba(245,158,11,0.035); }
+    .card.hl-red    { border-color: rgba(239,68,68,0.2);   background: rgba(239,68,68,0.035); }
+    .card.hl-purple { border-color: rgba(139,92,246,0.2);  background: rgba(139,92,246,0.035); }
+
+    .card-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .tag-green  { color: #4ADE80; }
+    .tag-blue   { color: #60A5FA; }
+    .tag-yellow { color: #FBBF24; }
+    .tag-red    { color: #F87171; }
+    .tag-purple { color: #A78BFA; }
+    .tag-gray   { color: #94A3B8; }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #F1F5F9;
+      letter-spacing: -0.2px;
+      margin-bottom: 10px;
+    }
+
+    .card-body {
+      font-size: 11.5px;
+      color: #94A3B8;
+      line-height: 1.65;
+    }
+
+    .card-body strong { color: #E2E8F0; font-weight: 600; }
+
+    /* ─── STEP FLOW ─── */
+    .steps { display: flex; flex-direction: column; }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+    }
+
+    .step-rail {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+      width: 36px;
+    }
+
+    .step-dot {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 700;
+      color: white; flex-shrink: 0;
+    }
+
+    .sd-b  { background: linear-gradient(135deg, #2563EB, #1D4ED8); }
+    .sd-g  { background: linear-gradient(135deg, #16A34A, #15803D); }
+    .sd-y  { background: linear-gradient(135deg, #D97706, #B45309); }
+    .sd-r  { background: linear-gradient(135deg, #DC2626, #B91C1C); }
+    .sd-gr { background: linear-gradient(135deg, #4B5563, #374151); }
+    .sd-p  { background: linear-gradient(135deg, #7C3AED, #6D28D9); }
+
+    .step-trail {
+      width: 2px;
+      flex: 1;
+      min-height: 12px;
+      background: rgba(255,255,255,0.06);
+    }
+
+    .step-body {
+      flex: 1;
+      padding-bottom: 22px;
+    }
+
+    .step-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #F1F5F9;
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+
+    .step-desc {
+      font-size: 11.5px;
+      color: #94A3B8;
+      line-height: 1.6;
+    }
+
+    .step-desc strong { color: #E2E8F0; }
+
+    .step-meta {
+      margin-top: 8px;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 8px;
+      font-size: 10.5px;
+      color: #64748B;
+      line-height: 1.65;
+    }
+
+    .step-meta strong { color: #94A3B8; }
+
+    /* ─── RULES ─── */
+    .rule {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 9px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .rule:last-child { border-bottom: none; }
+
+    .rn {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 700;
+      flex-shrink: 0; margin-top: 1px;
+    }
+
+    .rn-g { background: rgba(34,197,94,0.15); color: #4ADE80; border: 1px solid rgba(34,197,94,0.2); }
+    .rn-r { background: rgba(239,68,68,0.15); color: #F87171; border: 1px solid rgba(239,68,68,0.2); }
+    .rn-b { background: rgba(59,130,246,0.15); color: #60A5FA; border: 1px solid rgba(59,130,246,0.2); }
+
+    .rc { flex: 1; font-size: 11.5px; color: #94A3B8; line-height: 1.55; }
+    .rc strong { color: #E2E8F0; }
+
+    /* ─── TABLE ─── */
+    .tbl { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    .tbl th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 600;
+      letter-spacing: 1px; text-transform: uppercase;
+      color: #64748B;
+      padding: 10px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.015);
+    }
+    .tbl td {
+      font-size: 11.5px; color: #CBD5E1;
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+    .tbl tr:last-child td { border-bottom: none; }
+    .tbl .mono { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #A78BFA; }
+    .tbl .v-g { color: #4ADE80; font-weight: 600; }
+    .tbl .v-y { color: #FBBF24; font-weight: 600; }
+    .tbl .v-r { color: #F87171; font-weight: 600; }
+
+    /* ─── BADGES ─── */
+    .badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px; font-weight: 600;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 8px;
+      vertical-align: middle;
+      margin-left: 3px;
+    }
+    .b-auto   { background: rgba(34,197,94,0.12); color: #4ADE80; border: 1px solid rgba(34,197,94,0.15); }
+    .b-manual { background: rgba(245,158,11,0.12); color: #FBBF24; border: 1px solid rgba(245,158,11,0.15); }
+    .b-crit   { background: rgba(239,68,68,0.12); color: #F87171; border: 1px solid rgba(239,68,68,0.15); }
+
+    .prop {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 500;
+      padding: 2px 8px; border-radius: 4px;
+      background: rgba(139,92,246,0.1);
+      color: #C4B5FD;
+      border: 1px solid rgba(139,92,246,0.12);
+      margin: 2px 2px;
+    }
+
+    /* ─── ANNOTATIONS ─── */
+    .notes { margin-top: 24px; display: flex; gap: 12px; flex-wrap: wrap; }
+
+    .note {
+      border-left: 3px solid;
+      border-radius: 0 8px 8px 0;
+      padding: 10px 16px;
+      font-size: 11px;
+      line-height: 1.5;
+      max-width: 340px;
+    }
+    .note.y  { background: rgba(254,243,199,0.05); border-color: #FBBF24; color: #FDE68A; }
+    .note.b  { background: rgba(59,130,246,0.05);  border-color: #3B82F6; color: #93C5FD; }
+    .note.g  { background: rgba(34,197,94,0.05);   border-color: #22C55E; color: #86EFAC; }
+    .note.r  { background: rgba(239,68,68,0.05);   border-color: #EF4444; color: #FCA5A5; }
+
+    /* ─── SUBSECTION SEP ─── */
+    .sep { display: flex; align-items: center; gap: 14px; margin: 28px 0 22px; }
+    .sep-line { flex: 1; height: 1px; background: rgba(255,255,255,0.05); }
+    .sep-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 600;
+      letter-spacing: 2px; text-transform: uppercase;
+      color: #475569; white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="page-header">
+    <div class="page-tag">WF8 · Functional Specification · March 2026</div>
+    <div class="page-title">Outbound Campaigns — Deep Dive</div>
+    <div class="page-subtitle">Human-approved batch email sends. Every step from campaign dispatch through approval gate to execution and follow-up.</div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 1: CAMPAIGN TYPES                              -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 1</div>
+    <div class="section-title">Three Campaign Types</div>
+    <div class="section-desc">Every campaign requires explicit human approval via Slack before any email sends. No exceptions.</div>
+
+    <div class="grid g3">
+      <div class="card hl-blue">
+        <div class="card-tag tag-blue">Type 1</div>
+        <div class="card-title">Announcement</div>
+        <div class="card-body">
+          <strong>What:</strong> Company news, capability launch, case study.<br>
+          <strong>Audience:</strong> Warm contacts — Discovery+ deals, leads with engagement.<br>
+          <strong>Trigger:</strong> Manual dispatch from Ben/Emmet.<br>
+          <strong>Templates:</strong><br>
+          <span class="prop">announcement-enterprise.md</span><br>
+          <span class="prop">announcement-mid-market.md</span>
+        </div>
+      </div>
+
+      <div class="card hl-green">
+        <div class="card-tag tag-green">Type 2</div>
+        <div class="card-title">Cold Outreach</div>
+        <div class="card-body">
+          <strong>What:</strong> Industry-specific outreach to enriched, uncontacted contacts.<br>
+          <strong>Audience:</strong> No deals, no recent engagement, scored.<br>
+          <strong>Trigger:</strong> Manual dispatch OR Monday auto-batch.<br>
+          <strong>Templates:</strong><br>
+          <span class="prop">cold-cpg.md</span> <span class="prop">cold-automotive.md</span> <span class="prop">cold-beauty.md</span>
+        </div>
+      </div>
+
+      <div class="card hl-yellow">
+        <div class="card-tag tag-yellow">Type 3</div>
+        <div class="card-title">Follow-Up (No-Reply)</div>
+        <div class="card-body">
+          <strong>What:</strong> Single follow-up to non-responders, 5+ biz days after send.<br>
+          <strong>Audience:</strong> Prior WF8 recipients with no reply.<br>
+          <strong>Trigger:</strong> Auto-detected in WF6 sweep. Drafted, never auto-sent.<br>
+          <strong>Template:</strong> <span class="prop">follow-up-no-reply.md</span><br>
+          <strong>Rule:</strong> ONE follow-up per contact per campaign.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 2: 10-STEP BATCH FLOW                         -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 2</div>
+    <div class="section-title">10-Step Batch Assembly</div>
+    <div class="section-desc">Campaign instruction → assemble → personalize → approve → send. The approval gate at Step 9 is the human control point.</div>
+
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-p">1</div><div class="step-trail"></div></div>
+        <div class="step-body">
+          <div class="step-title">Receive Campaign Instruction <span class="badge b-manual">Human Trigger</span></div>
+          <div class="step-desc"><strong>Manual:</strong> Ben/Emmet DMs REV or posts to #klaw-rev-input.<br><strong>Scheduled:</strong> Monday after weekly report → auto-generates cold batch for contacts uncontacted 60+ days.</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-b">2</div><div class="step-trail"></div></div>
+        <div class="step-body">
+          <div class="step-title">Parse Campaign Intent</div>
+          <div class="step-desc">Extract: <strong>campaign type</strong> (announcement/cold/follow-up), <strong>target segment</strong> (industry, lifecycle, tier), <strong>template family</strong>, <strong>personalization signals</strong> to emphasize.</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-b">3</div><div class="step-trail"></div></div>
+        <div class="step-body">
+          <div class="step-title">Query HubSpot</div>
+          <div class="step-desc">Search contacts by industry, lead_tier, lifecyclestage, hs_email_last_send_date. Must have kartel_score. Pull name, email, title, company, score, tier, industry.</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-r">4</div><div class="step-trail"></div></div>
+        <div class="step-body">
+          <div class="step-title">Apply Exclusion Filters <span class="badge b-crit">6 Checks</span></div>
+          <div class="step-desc">Remove any contact matching these — breakdown logged for transparency:</div>
+          <div class="step-meta">
+            <strong>①</strong> lifecyclestage = customer (existing clients)<br>
+            <strong>②</strong> unsubscribed = true (CAN-SPAM)<br>
+            <strong>③</strong> hs_email_last_send_date within 30 days<br>
+            <strong>④</strong> sdr_sequence_status = active (in WF7 sequence)<br>
+            <strong>⑤</strong> email domain = @kartel.ai (internal)<br>
+            <strong>⑥</strong> Deal in Negotiation or Procurement (AE handles)
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-y">5</div><div class="step-trail"></div></div>
+        <div class="step-body">
+          <div class="step-title">Enrich Unenriched <span class="badge b-crit">Mandatory</span></div>
+          <div class="step-desc">Missing Clay data → <strong>find-and-enrich-list-of-contacts</strong> via Clay MCP. Unenriched contacts excluded from batch (Safeguard #2). If Clay unavailable: remove them, don't hold batch.</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-b">6</div><div class="step-trail"></div></div>
+        <div class="step-body">
+          <div class="step-title">Score Unscored</div>
+          <div class="step-desc">Contacts without kartel_score → trigger WF4. Score used for template selection and AE assignment.</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-b">7</div><div class="step-trail"></div></div>
+        <div class="step-body">
+          <div class="step-title">Select Template Per Contact</div>
+          <div class="step-meta">
+            <strong>Announcement:</strong> Enterprise → announcement-enterprise · Other → announcement-mid-market<br>
+            <strong>Cold:</strong> CPG → cold-cpg · Auto → cold-automotive · Beauty → cold-beauty · Other → cold-cpg (default)<br>
+            <strong>Follow-up:</strong> Any → follow-up-no-reply
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-b">8</div><div class="step-trail"></div></div>
+        <div class="step-body">
+          <div class="step-title">Personalize Each Email</div>
+          <div class="step-desc">Fill template variables. <strong>Clay signal priority for {{clay_signal}}:</strong></div>
+          <div class="step-meta">
+            <strong>①</strong> Recent funding round (most compelling)<br>
+            <strong>②</strong> Headcount growth >20%<br>
+            <strong>③</strong> Recent news / press<br>
+            <strong>④</strong> Open relevant roles (production, creative, marketing)<br>
+            <strong>⑤</strong> Industry trend (generic fallback)
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-y">9</div><div class="step-trail"></div></div>
+        <div class="step-body">
+          <div class="step-title">Approval Gate <span class="badge b-manual">Human Required</span></div>
+          <div class="step-desc">Full batch table posted to <strong>#klaw-rev-output</strong>: every contact with name, company, title, score, tier, Clay signal, template. Exclusion breakdown included.</div>
+          <div class="step-meta">
+            <strong>SEND</strong> → execute all · <strong>HOLD</strong> → individual contact cards · <strong>SEND 1,3,5</strong> → selective · <strong>CANCEL</strong> → discard
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-g">10</div><div style="width:2px;"></div></div>
+        <div class="step-body" style="padding-bottom:0;">
+          <div class="step-title">Execute on Approval <span class="badge b-auto">Automated</span></div>
+          <div class="step-desc">Send from sdr@kartel.ai via Gmail API. <strong>10/hr, 60s gap, daily cap.</strong> Each send: HubSpot engagement logged, hs_email_last_send_date updated, engagement_score +5.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 3: APPROVAL GATE                               -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 3</div>
+    <div class="section-title">Approval Gate — Four Response Paths</div>
+    <div class="section-desc">Ben or Emmet's Slack reply determines execution. Each path has a defined outcome.</div>
+
+    <div class="grid g2">
+      <div class="card hl-green">
+        <div class="card-tag tag-green">"SEND"</div>
+        <div class="card-title">Execute Full Batch</div>
+        <div class="card-body">All emails sent. Each logged to HubSpot with full content. hs_email_last_send_date updated. engagement_score +5. Completion posted to #klaw-rev-output.</div>
+      </div>
+      <div class="card hl-yellow">
+        <div class="card-tag tag-yellow">"HOLD"</div>
+        <div class="card-title">Individual Review</div>
+        <div class="card-body">One card per contact posted to #klaw-rev-output with email preview and Clay signals. Reply <strong>SEND {id}</strong> or <strong>SKIP {id}</strong> per contact.</div>
+      </div>
+      <div class="card hl-blue">
+        <div class="card-tag tag-blue">"SEND 1,3,5"</div>
+        <div class="card-title">Selective Send</div>
+        <div class="card-body">Only specified contacts sent. Others discarded (not held). Can be re-included in future campaigns.</div>
+      </div>
+      <div class="card hl-red">
+        <div class="card-tag tag-red">"CANCEL"</div>
+        <div class="card-title">Discard Batch</div>
+        <div class="card-body">Entire batch dropped. Logged: "Campaign canceled by {approver}." Contacts remain eligible for future batches.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 4: FOLLOW-UP AUTOMATION                        -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 4</div>
+    <div class="section-title">Follow-Up Automation — 5-Day No-Reply</div>
+    <div class="section-desc">5 biz days after a campaign, REV auto-detects non-responders and drafts a follow-up batch. Always requires SEND confirmation. Never auto-sends.</div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-gr">1</div><div class="step-trail"></div></div>
+        <div class="step-body">
+          <div class="step-title">Detect Non-Responders</div>
+          <div class="step-desc">During WF6 morning sweep: query contacts with hs_email_last_send_date 5+ biz days ago, no Gmail reply, unsubscribed = false.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-gr">2</div><div class="step-trail"></div></div>
+        <div class="step-body">
+          <div class="step-title">Filter Converted</div>
+          <div class="step-desc">Remove anyone who replied, booked a meeting, or was contacted by an AE since the original campaign.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-b">3</div><div class="step-trail"></div></div>
+        <div class="step-body">
+          <div class="step-title">Assemble Follow-Up Batch</div>
+          <div class="step-desc">Use <span class="prop">follow-up-no-reply.md</span> template. Original campaign context + "following up" framing. <strong>80 words max.</strong></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-dot sd-y">4</div><div style="width:2px;"></div></div>
+        <div class="step-body" style="padding-bottom:0;">
+          <div class="step-title">Post for Approval <span class="badge b-manual">Same Step 9 Format</span></div>
+          <div class="step-desc">Standard batch table. SEND / HOLD / CANCEL. <strong>One follow-up per contact per campaign</strong> — after this, contact returns to monitor pool.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note r">ONE follow-up per contact per campaign. No reply after follow-up → monitor pool. No further auto-outreach.</div>
+      <div class="note y">Monday auto-batch is a convenience — it STILL requires human approval.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 5: REPLY MONITORING + WF6 INTEGRATION          -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 5</div>
+    <div class="section-title">Reply Monitoring & WF6 Integration</div>
+    <div class="section-desc">WF8 has no dedicated reply loop or cron step. It hooks into existing WF6 infrastructure.</div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-tag tag-blue">Reply Detection (WF6 Step 1)</div>
+        <div class="card-body">
+          Replies to outbound emails detected on sdr@kartel.ai during WF6 Gmail scans.<br><br>
+          <strong>Interested:</strong> Post to #klaw-rev-output. No active deal → flag WF1.<br>
+          <strong>Unsubscribe:</strong> Set unsubscribed = true. Logged.<br>
+          <strong>OOO:</strong> Note return date. Include in next campaign after return.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-tag tag-gray">WF6 Integration Points</div>
+        <div class="card-body">
+          <strong>Dispatch:</strong> Event-driven (Slack), not sweep-based.<br>
+          <strong>Monday batch:</strong> After Monday weekly report (end of WF6 Step 9).<br>
+          <strong>Follow-up detection:</strong> Morning sweep alongside WF7 Phase D.<br>
+          <strong>Reply detection:</strong> WF6 Step 1 Gmail scan.<br>
+          <strong>Execution:</strong> Morning sweep after approval. <strong>Morning-only sends.</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 6: TEMPLATE VARIABLES                          -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 6</div>
+    <div class="section-title">Template Variables & Principles</div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-tag tag-gray">Variables (Filled Per Contact)</div>
+        <div class="card-body" style="display:flex;flex-wrap:wrap;gap:4px;">
+          <span class="prop">{{firstname}}</span>
+          <span class="prop">{{company}}</span>
+          <span class="prop">{{title}}</span>
+          <span class="prop">{{industry}}</span>
+          <span class="prop">{{clay_signal}}</span>
+          <span class="prop">{{campaign_hook}}</span>
+          <span class="prop">{{case_study_name}}</span>
+          <span class="prop">{{case_study_metric}}</span>
+          <span class="prop">{{ae_name}}</span>
+          <span class="prop">{{ae_title}}</span>
+          <span class="prop">{{ae_calendly_link}}</span>
+          <span class="prop">{{unsubscribe_link}}</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-tag tag-blue">Template Principles</div>
+        <div class="rule"><div class="rn rn-b">1</div><div class="rc"><strong>150 words max</strong> for cold outreach and announcements</div></div>
+        <div class="rule"><div class="rn rn-b">2</div><div class="rc"><strong>80 words max</strong> for follow-up / no-reply</div></div>
+        <div class="rule"><div class="rn rn-b">3</div><div class="rc">Lead with <strong>specific company signal</strong> (Clay) or industry trend</div></div>
+        <div class="rule"><div class="rn rn-b">4</div><div class="rc"><strong>One CTA per email</strong> — question or calendar link</div></div>
+        <div class="rule"><div class="rn rn-b">5</div><div class="rc"><strong>No attachments</strong> in first touch</div></div>
+        <div class="rule"><div class="rn rn-b">6</div><div class="rc">Signed as <strong>routed AE</strong> — never "REV", "AI", or "Kartel Team"</div></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 7: COMPLIANCE + PITFALLS                       -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Section 7</div>
+    <div class="section-title">Compliance & Critical Pitfalls</div>
+
+    <div class="grid g2">
+
+      <div class="card hl-red">
+        <div class="card-tag tag-red">Compliance — Non-Negotiable</div>
+        <div class="rule"><div class="rn rn-r">1</div><div class="rc"><strong>CAN-SPAM:</strong> Unsubscribe link in every template. Opt-outs processed within 24hrs.</div></div>
+        <div class="rule"><div class="rn rn-r">2</div><div class="rc"><strong>Opt-out:</strong> unsubscribed = true → excluded from all future batches immediately.</div></div>
+        <div class="rule"><div class="rn rn-r">3</div><div class="rc"><strong>30-day cooldown:</strong> Contacts emailed via WF8 excluded from new batches for 30 days.</div></div>
+        <div class="rule"><div class="rn rn-r">4</div><div class="rc"><strong>Client protection:</strong> lifecyclestage = customer → NEVER in any outbound batch.</div></div>
+        <div class="rule"><div class="rn rn-r">5</div><div class="rc"><strong>Active deal protection:</strong> Negotiation/Procurement contacts excluded.</div></div>
+        <div class="rule"><div class="rn rn-r">6</div><div class="rc"><strong>Identity:</strong> sdr@kartel.ai isolated from team inboxes.</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-tag tag-gray">Deliverability Caps (Shared WF7 + WF8)</div>
+        <table class="tbl">
+          <tbody>
+            <tr><td>Daily cap (warm-up)</td><td class="v-y">10 → 20 → 30</td></tr>
+            <tr><td>Daily cap (post warm-up)</td><td class="v-g">50</td></tr>
+            <tr><td>Per-hour cap</td><td>10</td></tr>
+            <tr><td>Min gap between sends</td><td>60 seconds</td></tr>
+            <tr><td>Bounce rate threshold</td><td class="v-r">3% → pause + alert</td></tr>
+            <tr><td>Spam complaint rate</td><td class="v-r">0.1% → pause + escalate Niels</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:14px;font-size:11px;color:#93C5FD;"><strong>Priority:</strong> WF7 inbound sends before WF8 outbound if cap is approaching.</div>
+      </div>
+
+    </div>
+
+    <div class="sep">
+      <div class="sep-line"></div>
+      <div class="sep-label">12 Rules That Must Never Break</div>
+      <div class="sep-line"></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="rule"><div class="rn rn-r">1</div><div class="rc"><strong>Never</strong> send without explicit SEND from Ben or Emmet</div></div>
+        <div class="rule"><div class="rn rn-r">2</div><div class="rc"><strong>Never</strong> include existing customers (lifecyclestage = customer)</div></div>
+        <div class="rule"><div class="rn rn-r">3</div><div class="rc"><strong>Never</strong> include unsubscribed contacts</div></div>
+        <div class="rule"><div class="rn rn-r">4</div><div class="rc"><strong>Never</strong> re-contact within 30 days</div></div>
+        <div class="rule"><div class="rn rn-r">5</div><div class="rc"><strong>Never</strong> exceed daily cap (WF7 has priority)</div></div>
+        <div class="rule"><div class="rn rn-r">6</div><div class="rc"><strong>Never</strong> send during midday/evening — morning only</div></div>
+      </div>
+      <div class="card">
+        <div class="rule"><div class="rn rn-r">7</div><div class="rc"><strong>Never</strong> send >1 follow-up per contact per campaign</div></div>
+        <div class="rule"><div class="rn rn-g">8</div><div class="rc"><strong>Always</strong> enrich before including in batch (Safeguard #2)</div></div>
+        <div class="rule"><div class="rn rn-g">9</div><div class="rc"><strong>Always</strong> log every send as HubSpot engagement with full content</div></div>
+        <div class="rule"><div class="rn rn-g">10</div><div class="rc"><strong>Always</strong> include unsubscribe mechanism (CAN-SPAM)</div></div>
+        <div class="rule"><div class="rn rn-g">11</div><div class="rc"><strong>Always</strong> show exclusion breakdown in batch summary</div></div>
+        <div class="rule"><div class="rn rn-g">12</div><div class="rc">Monday auto-batch <strong>still requires human approval</strong></div></div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
